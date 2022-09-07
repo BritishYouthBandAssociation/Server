@@ -15,11 +15,17 @@ function loadRoutes(server, routeDir){
     });
 }
 
-function initHandlebars(server, extension, opts, dir){
+function initHandlebars(server, extension, opts, dir, locals){
     opts.extname ??= `.${extension}`;
     server.engine(extension, handlebars(opts));
     server.set('view engine', extension);
     server.set('views', dir);
+
+    if(locals){
+        server.registerGlobals({
+            locals
+        });
+    }
 }
 
 const defaultConfig = {
@@ -42,12 +48,22 @@ module.exports = (config) => {
         loadRoutes(server, dir ?? path.join(config.dir, config.routeDir));
     }
 
-    server.useHandlebars = (extension, opts, dir) => {
-        initHandlebars(server, extension, opts, dir ?? path.join(config.dir, config.viewDir));
+    server.useHandlebars = (extension, opts, dir, locals) => {
+        initHandlebars(server, extension, opts, dir ?? path.join(config.dir, config.viewDir, locals));
     }
 
     server.addStaticDir = (dir) => {
         server.use('/', express.static(dir));
+    }
+
+    server.registerGlobals = (globals) => {
+        server.use((req, _, next) => {
+            Object.keys(globals).forEach(k => {
+                req[k] = globals[k];
+            });
+
+            next();
+        });
     }
 
     server
